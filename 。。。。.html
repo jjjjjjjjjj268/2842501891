@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PC28 自动预测系统</title>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --card: #141420;
+            --border: #1e1e30;
+            --text: #c8c8d4;
+            --accent: #00d4aa;
+            --red: #ff4757;
+            --gold: #ffa502;
+            --blue: #3742fa;
+            --green: #2ed573;
+            --orange: #ff6348;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'SF Mono', 'Consolas', 'Courier New', monospace;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 680px;
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            font-size: 1.4em;
+            color: var(--accent);
+            letter-spacing: 2px;
+        }
+        .header .sub {
+            font-size: 0.75em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* 胜率卡片 */
+        .winrate-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .winrate-item {
+            text-align: center;
+        }
+        .winrate-value {
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+        .winrate-label {
+            font-size: 0.7em;
+            color: #666;
+            margin-top: 4px;
+            letter-spacing: 2px;
+        }
+        .winrate-good {
+            color: var(--green);
+        }
+        .winrate-mid {
+            color: var(--gold);
+        }
+        .winrate-bad {
+            color: var(--red);
+        }
+
+        /* 状态栏 */
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 15px;
+            font-size: 0.8em;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+        .status-dot.online {
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse 2s infinite;
+        }
+        .status-dot.offline {
+            background: var(--red);
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        /* 预测卡片 */
+        .predict-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+        .predict-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent), var(--blue), var(--accent));
+            animation: shimmer 3s infinite;
+        }
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
+        .predict-card.main-attack {
+            border-color: var(--gold);
+        }
+        .predict-card.main-attack::before {
+            background: linear-gradient(90deg, var(--gold), var(--orange), var(--gold));
+        }
+        .predict-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .predict-output {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #fff;
+            letter-spacing: 1px;
+            word-break: break-all;
+            line-height: 1.6;
+        }
+        .predict-output .kill {
+            color: var(--red);
+        }
+        .predict-output .doub {
+            color: var(--accent);
+        }
+        .predict-output .code {
+            color: var(--gold);
+        }
+        .predict-period {
+            color: var(--blue);
+        }
+
+        /* 主攻预测区 */
+        .main-attack-section {
+            margin-bottom: 15px;
+        }
+        .main-attack-card {
+            background: var(--card);
+            border: 2px solid var(--gold);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        .main-attack-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--gold), #ff6b6b, var(--gold));
+            animation: shimmer 2s infinite;
+        }
+        .main-attack-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .main-attack-title {
+            font-size: 0.8em;
+            color: var(--gold);
+            letter-spacing: 3px;
+        }
+        .main-attack-badge {
+            font-size: 1.5em;
+        }
+        .main-attack-combos {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .main-attack-combo {
+            flex: 1;
+            min-width: 100px;
+            background: rgba(255, 165, 2, 0.1);
+            border: 1px solid rgba(255, 165, 2, 0.3);
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+        }
+        .main-attack-combo .combo-name {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+        .main-attack-combo .combo-codes {
+            font-size: 0.8em;
+            color: var(--gold);
+        }
+        .main-attack-result {
+            margin-top: 12px;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 1em;
+            font-weight: bold;
+        }
+        .result-kill-hit {
+            background: rgba(46, 213, 115, 0.15);
+            color: var(--green);
+        }
+        .result-kill-miss {
+            background: rgba(255, 71, 87, 0.15);
+            color: var(--red);
+        }
+        .result-main-hit {
+            background: rgba(255, 165, 2, 0.2);
+            color: var(--gold);
+            animation: glow 1.5s infinite;
+        }
+        @keyframes glow {
+            0%,
+            100% {
+                box-shadow: 0 0 10px rgba(255, 165, 2, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 25px rgba(255, 165, 2, 0.6);
+            }
+        }
+
+        /* 倒计时 */
+        .countdown {
+            text-align: center;
+            font-size: 0.8em;
+            color: #888;
+            margin-bottom: 15px;
+        }
+        .countdown span {
+            color: var(--gold);
+            font-size: 1.2em;
+        }
+
+        /* 回测表格 */
+        .data-section {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        .data-section .title {
+            padding: 12px 16px;
+            font-size: 0.75em;
+            color: #888;
+            letter-spacing: 2px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.73em;
+        }
+        .data-table th {
+            background: #1a1a2e;
+            color: #666;
+            padding: 8px 6px;
+            font-weight: normal;
+            text-align: center;
+            font-size: 0.85em;
+            position: sticky;
+            top: 0;
+        }
+        .data-table td {
+            padding: 6px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+        .data-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .combo-tag {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        .combo-小单 {
+            background: rgba(116, 185, 255, 0.2);
+            color: #74b9ff;
+        }
+        .combo-小双 {
+            background: rgba(0, 184, 148, 0.2);
+            color: #00b894;
+        }
+        .combo-大单 {
+            background: rgba(253, 203, 110, 0.2);
+            color: #fdcb6e;
+        }
+        .combo-大双 {
+            background: rgba(255, 118, 117, 0.2);
+            color: #ff7675;
+        }
+        .hit-kill-true {
+            color: var(--green);
+            font-weight: bold;
+        }
+        .hit-kill-false {
+            color: var(--red);
+            font-weight: bold;
+        }
+        .hit-main-true {
+            color: var(--gold);
+            font-weight: bold;
+        }
+        .hit-main-false {
+            color: #666;
+        }
+        .kill-tag {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            background: rgba(255, 71, 87, 0.2);
+            color: var(--red);
+        }
+        .main-tag {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            background: rgba(255, 165, 2, 0.2);
+            color: var(--gold);
+        }
+
+        /* 按钮 */
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            flex: 1;
+            min-width: 80px;
+            padding: 12px 8px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--card);
+            color: var(--text);
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.8em;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        .btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .btn.active {
+            background: var(--accent);
+            color: #000;
+            border-color: var(--accent);
+            font-weight: bold;
+        }
+        .btn .icon {
+            display: block;
+            font-size: 1.2em;
+            margin-bottom: 3px;
+        }
+
+        /* 日志 */
+        .log-area {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 0.72em;
+            color: #888;
+            line-height: 1.8;
+        }
+        .log-area .log-time {
+            color: #555;
+        }
+        .log-area .log-new {
+            color: var(--accent);
+        }
+        .log-area .log-predict {
+            color: var(--gold);
+            font-weight: bold;
+        }
+
+        .table-scroll {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 2px;
+        }
+
+        @media (max-width: 400px) {
+            .predict-output {
+                font-size: 1.2em;
+            }
+            .data-table {
+                font-size: 0.68em;
+            }
+            .winrate-value {
+                font-size: 1.4em;
+            }
+            .main-attack-combo {
+                min-width: 80px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- 头部 -->
+        <div class="header">
+            <h1>🎯 PC28 自动预测</h1>
+            <div class="sub">双组+小盾5y算法 · 实时监控 · 回测验证</div>
+        </div>
+
+        <!-- 胜率卡片 -->
+        <div class="winrate-card" id="winrateCard">
+            <div class="winrate-item">
+                <div class="winrate-value" id="wrTotal">--</div>
+                <div class="winrate-label">总回测</div>
+            </div>
+            <div class="winrate-item">
+                <div class="winrate-value" id="wrCorrect">--</div>
+                <div class="winrate-label">杀组命中</div>
+            </div>
+            <div class="winrate-item">
+                <div class="winrate-value" id="wrRate">--</div>
+                <div class="winrate-label">杀组胜率</div>
+            </div>
+            <div class="winrate-item">
+                <div class="winrate-value" id="wrMain">--</div>
+                <div class="winrate-label">主攻胜率</div>
+            </div>
+        </div>
+
+        <!-- 状态栏 -->
+        <div class="status-bar">
+            <div>
+                <span class="status-dot online" id="statusDot"></span>
+                <span id="statusText">监控中</span>
+            </div>
+            <div>数据: <span id="dataCount">0</span> 条</div>
+            <div>最新: <span id="latestPeriod">---</span></div>
+        </div>
+
+        <!-- 倒计时 -->
+        <div class="countdown">
+            距下次检测: <span id="countdown">--</span> 秒
+        </div>
+
+        <!-- 主攻预测区 -->
+        <div class="main-attack-section">
+            <div class="main-attack-card" id="mainAttackCard">
+                <div class="main-attack-header">
+                    <span class="main-attack-title">🔥 主攻预测</span>
+                    <span class="main-attack-badge" id="mainAttackBadge">--</span>
+                </div>
+                <div class="main-attack-combos" id="mainAttackCombos">
+                    <div class="main-attack-combo">
+                        <div class="combo-name">--</div>
+                        <div class="combo-codes">等待数据...</div>
+                    </div>
+                    <div class="main-attack-combo">
+                        <div class="combo-name">--</div>
+                        <div class="combo-codes">等待数据...</div>
+                    </div>
+                </div>
+                <div class="main-attack-result" id="mainAttackResult" style="display:none;"></div>
+            </div>
+        </div>
+
+        <!-- 综合预测卡片 -->
+        <div class="predict-card" id="predictCard">
+            <div class="predict-label">
+                <span>📋 综合预测</span>
+                <span id="predictBadge"></span>
+            </div>
+            <div class="predict-output" id="predictOutput">等待数据更新...</div>
+        </div>
+
+        <!-- 按钮 -->
+        <div class="btn-row">
+            <button class="btn active" id="btnAuto" onclick="toggleAuto()">
+                <span class="icon">🤖</span>自动监控
+            </button>
+            <button class="btn" onclick="manualPredict()">
+                <span class="icon">🔮</span>手动预测
+            </button>
+            <button class="btn" onclick="manualFetch()">
+                <span class="icon">🔄</span>拉取数据
+            </button>
+            <button class="btn" onclick="runBacktest()">
+                <span class="icon">📊</span>刷新回测
+            </button>
+        </div>
+
+        <!-- 回测历史表格 -->
+        <div class="data-section">
+            <div class="title">
+                <span>📊 近50期回测历史</span>
+                <span style="font-size:0.85em;color:var(--accent);" id="backtestSummary"></span>
+            </div>
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>期号</th>
+                            <th>号码</th>
+                            <th>开奖</th>
+                            <th>预测杀</th>
+                            <th>主攻</th>
+                            <th>杀组</th>
+                            <th>主攻</th>
+                        </tr>
+                    </thead>
+                    <tbody id="backtestBody">
+                        <tr><td colspan="7" style="color:#666;">需要至少11期数据才能回测...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 日志 -->
+        <div class="log-area" id="logArea">
+            <div>🟢 系统就绪，等待数据...</div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // 配置
+        // ============================================================
+        const API_URL = 'https://super.pc28998.com/history/JND28';
+        const CHECK_INTERVAL = 10;
+        const STORAGE_KEY = 'pc28_local_data';
+        const STORAGE_LOG_KEY = 'pc28_log';
+        const BACKTEST_COUNT = 50;
+
+        let localData = [];
+        let isAutoMode = true;
+        let countdownTimer = CHECK_INTERVAL;
+        let monitorInterval = null;
+        let countdownInterval = null;
+        let lastExpect = null;
+        let backtestResults = [];
+        let lastPrediction = null; // 上期预测结果，用于验证
+
+        // ============================================================
+        // 初始化
+        // ============================================================
+        function init() {
+            loadLocalData();
+            loadLogs();
+            updateStatus();
+            if (localData.length >= 11) {
+                runBacktestSilent();
+                updateWinrateDisplay();
+                checkLastPrediction();
+            }
+            if (localData.length >= 10) {
+                doPredict();
+            }
+            if (isAutoMode) {
+                startMonitor();
+            }
+        }
+
+        // ============================================================
+        // 本地存储
+        // ============================================================
+        function loadLocalData() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    localData = JSON.parse(raw);
+                    if (localData.length > 0) {
+                        localData.sort((a, b) => parseInt(a.expect) - parseInt(b.expect));
+                        lastExpect = localData[localData.length - 1].expect;
+                    }
+                }
+            } catch (e) {
+                localData = [];
+            }
+            // 加载上次预测
+            try {
+                lastPrediction = JSON.parse(localStorage.getItem('pc28_last_prediction') || 'null');
+            } catch (e) {
+                lastPrediction = null;
+            }
+        }
+
+        function saveLocalData() {
+            if (localData.length > 500) localData = localData.slice(-500);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(localData));
+            updateStatus();
+        }
+
+        function saveLastPrediction(pred) {
+            lastPrediction = pred;
+            localStorage.setItem('pc28_last_prediction', JSON.stringify(pred));
+        }
+
+        function loadLogs() {
+            const logArea = document.getElementById('logArea');
+            try {
+                const logs = JSON.parse(localStorage.getItem(STORAGE_LOG_KEY) || '[]');
+                logArea.innerHTML = logs.slice(-30).join('');
+            } catch (e) {
+                logArea.innerHTML = '<div>🟢 系统就绪，等待数据...</div>';
+            }
+        }
+
+        function addLog(msg, type = '') {
+            const logArea = document.getElementById('logArea');
+            const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+            const cls = type === 'new' ? 'log-new' : type === 'predict' ? 'log-predict' : '';
+            const entry = `<div><span class="log-time">[${time}]</span> <span class="${cls}">${msg}</span></div>`;
+            logArea.innerHTML += entry;
+            logArea.scrollTop = logArea.scrollHeight;
+            try {
+                let logs = JSON.parse(localStorage.getItem(STORAGE_LOG_KEY) || '[]');
+                logs.push(entry);
+                if (logs.length > 100) logs = logs.slice(-100);
+                localStorage.setItem(STORAGE_LOG_KEY, JSON.stringify(logs));
+            } catch (e) {}
+        }
+
+        // ============================================================
+        // API获取
+        // ============================================================
+        async function fetchAPIData() {
+            try {
+                const resp = await fetch(API_URL, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0',
+                        'Accept': 'application/json',
+                        'Referer': 'https://super.pc28998.com/'
+                    },
+                    cache: 'no-cache'
+                });
+                const data = await resp.json();
+                if (data.code === 1 && Array.isArray(data.data)) {
+                    const records = [];
+                    for (const item of data.data) {
+                        const parts = item.opencode.split(',');
+                        if (parts.length === 3) {
+                            const a = parseInt(parts[0]);
+                            const b = parseInt(parts[1]);
+                            const c = parseInt(parts[2]);
+                            const total = a + b + c;
+                            const isBig = total >= 14;
+                            const isSingle = total % 2 === 1;
+                            const zuhe = (isBig ? '大' : '小') + (isSingle ? '单' : '双');
+                            records.push({
+                                expect: item.expect,
+                                nums: [a, b, c],
+                                total: total,
+                                combination: zuhe,
+                                is_big: isBig,
+                                is_single: isSingle,
+                                yu5: total % 5
+                            });
+                        }
+                    }
+                    records.sort((a, b) => parseInt(a.expect) - parseInt(b.expect));
+                    return records;
+                }
+            } catch (e) {
+                console.error('API请求失败:', e);
+            }
+            return null;
+        }
+
+        async function updateDataFromAPI() {
+            const apiData = await fetchAPIData();
+            if (!apiData) return 0;
+            const existing = new Set(localData.map(d => d.expect));
+            let added = 0;
+            for (const d of apiData) {
+                if (!existing.has(d.expect)) {
+                    localData.push(d);
+                    existing.add(d.expect);
+                    added++;
+                }
+            }
+            if (added > 0) {
+                localData.sort((a, b) => parseInt(a.expect) - parseInt(b.expect));
+                if (localData.length > 500) localData = localData.slice(-500);
+                saveLocalData();
+                lastExpect = localData[localData.length - 1].expect;
+                addLog(`📡 获取API最新数据成功${added}期`, 'new');
+                addLog(`📅 最新期号: ${lastExpect}`, 'new');
+                // 检查上期预测结果
+                checkLastPrediction();
+                runBacktestSilent();
+                updateWinrateDisplay();
+                return added;
+            }
+            return 0;
+        }
+
+        // ============================================================
+        // 核心算法
+        // ============================================================
+        function predictSingle(history) {
+            if (history.length < 10) return null;
+            const latest = history[history.length - 1];
+            const currentYu5 = latest.yu5;
+            const currentNums = [...latest.nums];
+
+            const positionRules = { 0: 'shi', 1: 'ge', 2: 'bai', 3: 'bai_shi', 4: 'ge' };
+            const yu5ToKill = { 0: '小单', 1: '大单', 2: '小双', 3: '大双', 4: '小单' };
+
+            let refPeriods = history.slice(0, -1).filter(d => d.yu5 === currentYu5);
+            refPeriods = refPeriods.slice(-4);
+            if (refPeriods.length === 0) refPeriods = history.slice(-6, -1);
+
+            const positionRule = positionRules[currentYu5] || 'ge';
+            const killGroups = [];
+
+            for (const ref of refPeriods) {
+                const refNums = [...ref.nums];
+                const newNums = [...currentNums];
+                if (positionRule === 'bai') {
+                    newNums[0] = (currentNums[0] + refNums[0]) % 10;
+                } else if (positionRule === 'shi') {
+                    newNums[1] = (currentNums[1] + refNums[1]) % 10;
+                } else if (positionRule === 'ge') {
+                    newNums[2] = (currentNums[2] + refNums[2]) % 10;
+                } else if (positionRule === 'bai_shi') {
+                    const newNum = (currentNums[0] + currentNums[1] + refNums[0] + refNums[1]) % 10;
+                    newNums[0] = newNum;
+                    newNums[1] = newNum;
+                }
+                const newTotal = newNums.reduce((a, b) => a + b, 0);
+                const newYu5 = newTotal % 5;
+                killGroups.push(yu5ToKill[newYu5] || '小单');
+            }
+
+            const weights = [0.4, 0.3, 0.2, 0.1].slice(0, killGroups.length);
+            const scores = {};
+            killGroups.forEach((kg, i) => { scores[kg] = (scores[kg] || 0) + (weights[i] || 0.1); });
+
+            let finalKill = Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0];
+            const maxScore = scores[finalKill];
+            const winners = Object.entries(scores).filter(([, v]) => v === maxScore).map(([k]) => k);
+            if (winners.length > 1) {
+                const recent = history.slice(-20);
+                const comboCounts = {};
+                recent.forEach(d => comboCounts[d.combination] = (comboCounts[d.combination] || 0) + 1);
+                finalKill = winners.sort((a, b) => (comboCounts[a] || 0) - (comboCounts[b] || 0))[0];
+            }
+
+            return finalKill;
+        }
+
+        function fullPredict(history) {
+            if (history.length < 10) return null;
+            const killGroup = predictSingle(history);
+            if (!killGroup) return null;
+
+            const allGroups = ['小单', '小双', '大单', '大双'];
+            const remaining = allGroups.filter(g => g !== killGroup);
+            const recent20 = history.slice(-20);
+            const comboCounts = {};
+            recent20.forEach(d => comboCounts[d.combination] = (comboCounts[d.combination] || 0) + 1);
+            const doubleGroup = remaining.sort((a, b) => (comboCounts[b] || 0) - (comboCounts[a] || 0)).slice(0, 2);
+
+            // 主攻组合 = 双组
+            const mainAttack = [...doubleGroup];
+
+            const recent50 = history.slice(-50);
+            const totalFreq = {};
+            recent50.forEach(d => totalFreq[d.total] = (totalFreq[d.total] || 0) + 1);
+
+            // 每个主攻组合的特码
+            const mainCodes = {};
+            for (const combo of mainAttack) {
+                const valid = [];
+                for (let t = 0; t <= 27; t++) {
+                    const isBig = t >= 14;
+                    const isSingle = t % 2 === 1;
+                    const zuhe = (isBig ? '大' : '小') + (isSingle ? '单' : '双');
+                    if (zuhe === combo) {
+                        valid.push({ total: t, score: totalFreq[t] || 0 });
+                    }
+                }
+                valid.sort((a, b) => b.score - a.score);
+                mainCodes[combo] = valid.slice(0, 2).map(v => v.total);
+            }
+
+            // 综合特码
+            const allValid = [];
+            for (let t = 0; t <= 27; t++) {
+                const isBig = t >= 14;
+                const isSingle = t % 2 === 1;
+                const zuhe = (isBig ? '大' : '小') + (isSingle ? '单' : '双');
+                if (mainAttack.includes(zuhe)) {
+                    allValid.push({ total: t, score: totalFreq[t] || 0 });
+                }
+            }
+            allValid.sort((a, b) => b.score - a.score);
+            let codes = allValid.slice(0, 4).map(v => v.total);
+            if (codes.length < 4) {
+                const allTotals = Object.entries(totalFreq).sort((a, b) => b[1] - a[1]);
+                for (const [t] of allTotals) {
+                    const tn = parseInt(t);
+                    if (!codes.includes(tn) && codes.length < 4) codes.push(tn);
+                }
+            }
+            codes = codes.slice(0, 4);
+
+            const latest = history[history.length - 1];
+            const nextPeriod = String(parseInt(latest.expect) + 1);
+            const shortPeriod = nextPeriod.slice(-2);
+
+            return {
+                shortPeriod,
+                nextPeriod,
+                killGroup,
+                doubleGroup,
+                mainAttack,
+                mainCodes,
+                codes,
+                predictForExpect: nextPeriod
+            };
+        }
+
+        function doPredict() {
+            if (localData.length < 10) {
+                document.getElementById('predictOutput').innerHTML =
+                    '<span style="color:#888;">数据不足，需至少10期（当前' + localData.length + '期）</span>';
+                document.getElementById('mainAttackCombos').innerHTML =
+                    '<div class="main-attack-combo"><div class="combo-name">--</div><div class="combo-codes">等待数据...</div></div>';
+                return null;
+            }
+
+            const history = [...localData];
+            const result = fullPredict(history);
+            if (!result) return null;
+
+            renderPredictOutput(result);
+            renderMainAttack(result);
+            saveLastPrediction(result);
+            return result;
+        }
+
+        function formatOutput(result) {
+            const period = result.shortPeriod;
+            const kill = result.killGroup;
+            const doub = result.doubleGroup.join('');
+            const codes = result.codes.map(c => String(c).padStart(2, '0')).join('/');
+            return `${period}.杀${kill} ${doub} ${codes}`;
+        }
+
+        function renderPredictOutput(result) {
+            const period = result.shortPeriod;
+            const kill = result.killGroup;
+            const doub = result.doubleGroup.join('');
+            const codes = result.codes.map(c => String(c).padStart(2, '0')).join('/');
+            document.getElementById('predictOutput').innerHTML = `
+                <span class="predict-period">${period}.</span><span class="kill">杀${kill}</span> <span class="doub">${doub}</span> <span class="code">${codes}</span>
+            `;
+            document.getElementById('predictBadge').textContent = '';
+        }
+
+        function renderMainAttack(result) {
+            const combosDiv = document.getElementById('mainAttackCombos');
+            combosDiv.innerHTML = result.mainAttack.map(combo => {
+                const codes = (result.mainCodes[combo] || []).map(c => String(c).padStart(2, '0')).join(
+                    '/');
+                return `
+                    <div class="main-attack-combo">
+                        <div class="combo-name">${combo}</div>
+                        <div class="combo-codes">${codes}</div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('mainAttackBadge').textContent = '🎯';
+            document.getElementById('mainAttackResult').style.display = 'none';
+        }
+
+        // ============================================================
+        // 验证上期预测
+        // ============================================================
+        function checkLastPrediction() {
+            if (!lastPrediction || localData.length < 2) return;
+
+            const predictedExpect = lastPrediction.predictForExpect;
+            const actualData = localData.find(d => d.expect === predictedExpect);
+
+            if (!actualData) return;
+
+            const actualCombo = actualData.combination;
+            const killHit = actualCombo !== lastPrediction.killGroup;
+            const mainHit = lastPrediction.mainAttack.includes(actualCombo);
+
+            // 更新预测卡片徽章
+            const badge = document.getElementById('predictBadge');
+            if (killHit) {
+                badge.innerHTML = '🀄️ 杀组命中';
+                badge.style.color = 'var(--green)';
+                document.getElementById('predictCard').style.borderColor = 'var(--green)';
+            } else {
+                badge.innerHTML = '❌ 杀组失误';
+                badge.style.color = 'var(--red)';
+                document.getElementById('predictCard').style.borderColor = 'var(--red)';
+            }
+
+            // 更新主攻卡片
+            const mainBadge = document.getElementById('mainAttackBadge');
+            const mainResult = document.getElementById('mainAttackResult');
+            if (mainHit) {
+                mainBadge.textContent = '🈵';
+                mainResult.style.display = 'block';
+                mainResult.className = 'main-attack-result result-main-hit';
+                mainResult.innerHTML = `🈵 主攻命中！开奖 <b>${actualCombo}</b> （${actualData.expect}期 ${actualData.nums.join('+')}=${actualData.total}）`;
+                document.getElementById('mainAttackCard').style.borderColor = 'var(--gold)';
+            } else if (killHit) {
+                mainBadge.textContent = '🀄️';
+                mainResult.style.display = 'block';
+                mainResult.className = 'main-attack-result result-kill-hit';
+                mainResult.innerHTML = `🀄️ 杀组命中！开奖 <b>${actualCombo}</b> （${actualData.expect}期 ${actualData.nums.join('+')}=${actualData.total}）`;
+                document.getElementById('mainAttackCard').style.borderColor = 'var(--green)';
+            } else {
+                mainBadge.textContent = '❌';
+                mainResult.style.display = 'block';
+                mainResult.className = 'main-attack-result result-kill-miss';
+                mainResult.innerHTML = `❌ 预测失误！开奖 <b>${actualCombo}</b> （${actualData.expect}期 ${actualData.nums.join('+')}=${actualData.total}）`;
+                document.getElementById('mainAttackCard').style.borderColor = 'var(--red)';
+            }
+
+            addLog(`📋 上期验证: 预测杀${lastPrediction.killGroup} 主攻${lastPrediction.mainAttack.join('/')} → 实际${actualCombo} ${killHit?'🀄️杀组命中':''} ${mainHit?'🈵主攻命中':''}`);
+        }
+
+        // ============================================================
+        // 回测系统
+        // ============================================================
+        function runBacktestSilent() {
+            if (localData.length < 11) {
+                backtestResults = [];
+                return;
+            }
+            const results = [];
+            const dataLen = localData.length;
+            const startIdx = Math.max(10, dataLen - BACKTEST_COUNT - 1);
+
+            for (let i = startIdx; i < dataLen; i++) {
+                const history = localData.slice(0, i);
+                const actual = localData[i];
+                const fullResult = fullPredict(history);
+                if (!fullResult) continue;
+
+                const killHit = actual.combination !== fullResult.killGroup;
+                const mainHit = fullResult.mainAttack.includes(actual.combination);
+
+                results.push({
+                    expect: actual.expect,
+                    nums: actual.nums,
+                    total: actual.total,
+                    combination: actual.combination,
+                    predictedKill: fullResult.killGroup,
+                    predictedMain: [...fullResult.mainAttack],
+                    killHit: killHit,
+                    mainHit: mainHit
+                });
+            }
+
+            backtestResults = results.slice(-BACKTEST_COUNT);
+            renderBacktestTable();
+        }
+
+        function runBacktest() {
+            addLog('📊 刷新回测数据...');
+            runBacktestSilent();
+            updateWinrateDisplay();
+            addLog('✅ 回测刷新完成');
+        }
+
+        function renderBacktestTable() {
+            const tbody = document.getElementById('backtestBody');
+            if (backtestResults.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="color:#666;">需要至少11期数据才能回测...</td></tr>';
+                document.getElementById('backtestSummary').textContent = '';
+                return;
+            }
+
+            tbody.innerHTML = backtestResults.slice().reverse().map(r => {
+                const numsStr = r.nums.join('+');
+                const comboCls = 'combo-' + r.combination;
+                const killCls = r.killHit ? 'hit-kill-true' : 'hit-kill-false';
+                const mainCls = r.mainHit ? 'hit-main-true' : 'hit-main-false';
+                const killIcon = r.killHit ? '🀄️' : '❌';
+                const mainIcon = r.mainHit ? '🈵' : '--';
+                return `
+                    <tr>
+                        <td>${r.expect}</td>
+                        <td>${numsStr}</td>
+                        <td><span class="combo-tag ${comboCls}">${r.combination}</span></td>
+                        <td><span class="kill-tag">${r.predictedKill}</span></td>
+                        <td><span class="main-tag">${r.predictedMain.join(' ')}</span></td>
+                        <td class="${killCls}">${killIcon}</td>
+                        <td class="${mainCls}">${mainIcon}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            updateBacktestSummary();
+        }
+
+        function updateBacktestSummary() {
+            if (backtestResults.length === 0) {
+                document.getElementById('backtestSummary').textContent = '';
+                return;
+            }
+            const killCorrect = backtestResults.filter(r => r.killHit).length;
+            const mainCorrect = backtestResults.filter(r => r.mainHit).length;
+            const total = backtestResults.length;
+            const killRate = ((killCorrect / total) * 100).toFixed(1);
+            const mainRate = ((mainCorrect / total) * 100).toFixed(1);
+            document.getElementById('backtestSummary').textContent =
+                `杀组${killRate}% | 主攻${mainRate}%`;
+        }
+
+        function updateWinrateDisplay() {
+            if (backtestResults.length === 0) {
+                document.getElementById('wrTotal').textContent = '--';
+                document.getElementById('wrCorrect').textContent = '--';
+                document.getElementById('wrRate').textContent = '--';
+                document.getElementById('wrMain').textContent = '--';
+                return;
+            }
+
+            const total = backtestResults.length;
+            const killCorrect = backtestResults.filter(r => r.killHit).length;
+            const mainCorrect = backtestResults.filter(r => r.mainHit).length;
+            const killRate = ((killCorrect / total) * 100).toFixed(1);
+            const mainRate = ((mainCorrect / total) * 100).toFixed(1);
+
+            // 近10期
+            const recent10 = backtestResults.slice(-10);
+            const recentKillCorrect = recent10.filter(r => r.killHit).length;
+            const recentMainCorrect = recent10.filter(r => r.mainHit).length;
+            const recentKillRate = recent10.length > 0 ? ((recentKillCorrect / recent10.length) * 100).toFixed(1) : '--';
+            const recentMainRate = recent10.length > 0 ? ((recentMainCorrect / recent10.length) * 100).toFixed(1) : '--';
+
+            document.getElementById('wrTotal').textContent = total;
+            document.getElementById('wrCorrect').textContent = killCorrect;
+            document.getElementById('wrRate').textContent = killRate + '%';
+            document.getElementById('wrMain').textContent = mainRate + '%';
+
+            const rateEl = document.getElementById('wrRate');
+            rateEl.className = 'winrate-value ' + (parseFloat(killRate) >= 80 ? 'winrate-good' : parseFloat(killRate) >=
+                65 ? 'winrate-mid' : 'winrate-bad');
+
+            const mainEl = document.getElementById('wrMain');
+            mainEl.className = 'winrate-value ' + (parseFloat(mainRate) >= 55 ? 'winrate-good' : parseFloat(mainRate) >=
+                40 ? 'winrate-mid' : 'winrate-bad');
+        }
+
+        // ============================================================
+        // 状态
+        // ============================================================
+        function updateStatus() {
+            document.getElementById('dataCount').textContent = localData.length;
+            document.getElementById('latestPeriod').textContent = lastExpect || '---';
+        }
+
+        // ============================================================
+        // 监控
+        // ============================================================
+        function startMonitor() {
+            stopMonitor();
+            countdownTimer = CHECK_INTERVAL;
+            monitorInterval = setInterval(async () => {
+                const added = await updateDataFromAPI();
+                if (added > 0 && localData.length >= 10) {
+                    doPredict();
+                }
+                countdownTimer = CHECK_INTERVAL;
+                updateCountdownDisplay();
+            }, CHECK_INTERVAL * 1000);
+            countdownInterval = setInterval(() => {
+                countdownTimer = Math.max(0, countdownTimer - 1);
+                updateCountdownDisplay();
+            }, 1000);
+            document.getElementById('statusDot').className = 'status-dot online';
+            document.getElementById('statusText').textContent = '监控中';
+            document.getElementById('btnAuto').classList.add('active');
+            updateCountdownDisplay();
+        }
+
+        function stopMonitor() {
+            if (monitorInterval) clearInterval(monitorInterval);
+            if (countdownInterval) clearInterval(countdownInterval);
+            monitorInterval = null;
+            countdownInterval = null;
+            document.getElementById('statusDot').className = 'status-dot offline';
+            document.getElementById('statusText').textContent = '已停止';
+            document.getElementById('btnAuto').classList.remove('active');
+            document.getElementById('countdown').textContent = '--';
+        }
+
+        function toggleAuto() {
+            if (isAutoMode) {
+                stopMonitor();
+                isAutoMode = false;
+                addLog('⏸️ 自动监控已停止');
+            } else {
+                isAutoMode = true;
+                startMonitor();
+                addLog('▶️ 自动监控已启动');
+            }
+        }
+
+        function updateCountdownDisplay() {
+            document.getElementById('countdown').textContent = countdownTimer;
+        }
+
+        // ============================================================
+        // 按钮
+        // ============================================================
+        async function manualFetch() {
+            addLog('🔄 手动拉取数据...');
+            const added = await updateDataFromAPI();
+            if (added > 0) {
+                if (localData.length >= 10) doPredict();
+            } else {
+                addLog('ℹ️ 无新数据');
+            }
+        }
+
+        function manualPredict() {
+            if (localData.length < 10) {
+                addLog('❌ 数据不足，需至少10期');
+                return;
+            }
+            addLog('🔮 手动预测...');
+            const result = doPredict();
+            if (result) {
+                addLog(`🎯 预测: ${formatOutput(result)}`, 'predict');
+            }
+        }
+
+        // ============================================================
+        // 启动
+        // ============================================================
+        window.addEventListener('DOMContentLoaded', () => {
+            init();
+            updateDataFromAPI().then(added => {
+                if (added > 0 && localData.length >= 10) doPredict();
+                runBacktestSilent();
+                updateWinrateDisplay();
+                if (isAutoMode) startMonitor();
+            });
+        });
+
+        window.addEventListener('beforeunload', () => {
+            saveLocalData();
+        });
+    </script>
+</body>
+</html>
